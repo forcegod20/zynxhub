@@ -1,0 +1,85 @@
+-- ===== ZYNX HUB - MAIN LOADER =====
+-- Loads 3 separate systems from external links
+
+local function loadScriptFromURL(url, scriptName)
+    print("📥 Loading: " .. scriptName)
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    
+    if success then
+        print("✅ " .. scriptName .. " loaded successfully!")
+        return true
+    else
+        print("❌ Failed to load " .. scriptName)
+        print("Error: " .. tostring(result))
+        return false
+    end
+end
+
+-- Function to load all 3 systems with optimized loading
+local function loadAllSystems()
+    print("🎯 Zynx Hub Main Loader Starting...")
+    print("💡 Loading 3 systems sequentially to prevent lag...")
+    
+    -- Replace these with your actual GitHub/Pastebin links
+    local systems = {
+        {
+            name = "Webhook Notification System",
+            url = "https://raw.githubusercontent.com/forcegod20/zynxhub/refs/heads/main/webhook"
+        },
+        {
+            name = "Loading Screen System", 
+            url = "https://raw.githubusercontent.com/forcegod20/zynxhub/refs/heads/main/loadingscreen"
+        },
+        {
+            name = "Command Line System",
+            url = "https://raw.githubusercontent.com/forcegod20/zynxhub/refs/heads/main/cmdline"
+        }
+    }
+    
+    -- Alternative Pastebin URLs
+    -- local systems = {
+    --     {name = "Webhook", url = "https://pastebin.com/raw/WEBHOOKCODE"},
+    --     {name = "Loading Screen", url = "https://pastebin.com/raw/LOADINGCODE"},
+    --     {name = "Command Line", url = "https://pastebin.com/raw/COMMANDCODE"}
+    -- }
+    
+    -- Load systems one by one
+    for i, system in ipairs(systems) do
+        print("\n🔧 Loading " .. i .. "/3: " .. system.name)
+        
+        local success = loadScriptFromURL(system.url, system.name)
+        
+        if success then
+            print("✅ " .. system.name .. " - READY")
+        else
+            print("❌ " .. system.name .. " - FAILED")
+        end
+        
+        -- Smart delay between loads (longer for heavier systems)
+        if i < #systems then
+            local delay = 1 -- Default 1 second
+            if system.name == "Loading Screen System" then
+                delay = 3 -- Give loading screen more time to initialize
+            end
+            wait(delay)
+        end
+    end
+    
+    print("\n🎉 ALL SYSTEMS LOADED SUCCESSFULLY!")
+    print("📊 Webhook: Ready")
+    print("🖥️  Loading Screen: Ready (will switch when authorized users join)")
+    print("⌨️  Command Line: Ready")
+    print("\n💡 Use '!help' for command list")
+end
+
+-- Start the loading process
+spawn(function()
+    wait(1) -- Initial delay
+    loadAllSystems()
+end)
+
+print("🚀 Zynx Hub Main Loader Activated!")
+print("⏳ Systems loading in background...")
